@@ -1,0 +1,15 @@
+/target
+/target-native
+/.env
+/.idea
+/.vscode
+/.nvimlog
+/.venv
+/vendor
+*.log
+*.local
+*.der
+*.swp
+*.swo
+*.swn
+.DS_Store

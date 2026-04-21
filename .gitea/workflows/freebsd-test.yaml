@@ -1,0 +1,13 @@
+name: FreeBSD scenario test
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  test:
+    runs-on: FreeBSD
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo build --verbose
+      - run: just smoke

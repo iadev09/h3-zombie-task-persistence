@@ -101,9 +101,11 @@ wait_until_next_tick_after() {
 
   while true; do
     local current_tick
+    local safe_next_tick
     current_tick="$(last_tick_number "$file" 2>/dev/null || true)"
+    safe_next_tick=$((baseline_tick + 2))
 
-    if [[ -n "$current_tick" ]] && [[ "$current_tick" =~ ^[0-9]+$ ]] && ((current_tick > baseline_tick)); then
+    if [[ -n "$current_tick" ]] && [[ "$current_tick" =~ ^[0-9]+$ ]] && ((current_tick > safe_next_tick)); then
       return 0
     fi
 

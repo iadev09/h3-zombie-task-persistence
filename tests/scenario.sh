@@ -103,10 +103,7 @@ wait_until_next_tick_after() {
     local current_tick
     current_tick="$(last_tick_number "$file" 2>/dev/null || true)"
 
-    local safe_next_tick
-    safe_next_tick=$((baseline_tick + 2))
-
-    if [[ -n "$current_tick" ]] && [[ "$current_tick" =~ ^[0-9]+$ ]] && ((current_tick > safe_next_tick)); then
+    if [[ -n "$current_tick" ]] && [[ "$current_tick" =~ ^[0-9]+$ ]] && ((current_tick > baseline_tick)); then
       return 0
     fi
 
@@ -183,43 +180,45 @@ wait_for_log_line "$CLIENT1_LOG" '\[Client\] tick 1:'
 assert_last_subscribers "$CLIENT1_LOG" 1 "client1 first tick"
 
 echo "== start client2 =="
+client1_tick_before_client2_join="$(last_tick_number "$CLIENT1_LOG")"
 "$CLIENT_BIN" >"$CLIENT2_LOG" 2>&1 &
 CLIENT2_PID=$!
 echo "client2 pid=$CLIENT2_PID"
 wait_for_log_line "$CLIENT2_LOG" '\[Client\] tick 1:'
 assert_last_subscribers "$CLIENT2_LOG" 2 "client2 first tick"
-assert_last_subscribers "$CLIENT1_LOG" 2 "client1 should see 2 subscribers"
+assert_subscribers_after_next_tick "$CLIENT1_LOG" 2 "client1 should see 2 subscribers after client2 joins" "$client1_tick_before_client2_join"
 
 echo "== graceful exit scenario (SIGTERM) =="
 echo "sending SIGTERM to client2 pid=$CLIENT2_PID (with ApplicationClose(0x100))"
+client1_tick_before_client2_exit="$(last_tick_number "$CLIENT1_LOG")"
 kill -SIGTERM "$CLIENT2_PID"
 if ! wait_for_pid_exit "$CLIENT2_PID" 5; then
   echo "client2 did not exit after SIGTERM" >&2
   exit 1
 fi
 unset CLIENT2_PID
-client1_lart_tick_after_client2_exit="$(last_tick_number "$CLIENT1_LOG")"
-assert_subscribers_after_next_tick "$CLIENT1_LOG" 1 "client1 should see 1 subscriber after client2 exit" "$client1_lart_tick_after_client2_exit"
+assert_subscribers_after_next_tick "$CLIENT1_LOG" 1 "client1 should see 1 subscriber after client2 exit" "$client1_tick_before_client2_exit"
 
 echo "== start client3 =="
+client1_tick_before_client3_join="$(last_tick_number "$CLIENT1_LOG")"
 "$CLIENT_BIN" >"$CLIENT3_LOG" 2>&1 &
 CLIENT3_PID=$!
 echo "client3 pid=$CLIENT3_PID"
 wait_for_log_line "$CLIENT3_LOG" '\[Client\] tick 1:'
 assert_last_subscribers "$CLIENT3_LOG" 2 "client3 first tick"
-assert_last_subscribers "$CLIENT1_LOG" 2 "client1 should see 2 subscribers"
+assert_subscribers_after_next_tick "$CLIENT1_LOG" 2 "client1 should see 2 subscribers after client3 joins" "$client1_tick_before_client3_join"
 
 echo "== abrupt close scenario (SIGINT/SIGKILL)"
 echo "sending SIGKILL to client3 pid=$CLIENT3_PID (without ApplicationClose)"
+client1_tick_before_client3_exit="$(last_tick_number "$CLIENT1_LOG")"
 kill -SIGKILL "$CLIENT3_PID"
 if ! wait_for_pid_exit "$CLIENT3_PID" 3; then
   echo "client3 did not exit after SIGKILL" >&2
   exit 1
 fi
 unset CLIENT3_PID
-client1_tick_after_client3_exit="$(last_tick_number "$CLIENT1_LOG")"
 
-if ! assert_subscribers_after_next_tick "$CLIENT1_LOG" 1 "client1 should see 1 subscriber after client3 exit" "$client1_tick_after_client3_exit"; then
+if ! assert_subscribers_after_next_tick "$CLIENT1_LOG" 1 "client1 should see 1 subscriber after client3 exit" "$client1_tick_before_client3_exit"; then
   echo "waiting ${SERVER_IDLE_TIMEOUT_SECS}s for server idle timeout, then retrying assertion"
   sleep "$SERVER_IDLE_TIMEOUT_SECS"
   if assert_last_subscribers "$CLIENT1_LOG" 1 "client1 should see 1 subscriber after server idle timeout"; then

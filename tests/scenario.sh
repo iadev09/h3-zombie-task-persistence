@@ -173,6 +173,7 @@ echo "== start server =="
 SERVER_PID=$!
 wait_for_log_line "$SERVER_LOG" '\[Server\] listening on'
 echo "server pid=$SERVER_PID"
+echo "policy: abrupt H3 drops are expected to clear only after QUIC keepalive/idle-timeout detection"
 
 echo "== start client1 =="
 "$CLIENT_BIN" >"$CLIENT1_LOG" 2>&1 &
